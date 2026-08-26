@@ -32,7 +32,7 @@
 ###
 - chain:
     - core (if-name-=-main -> router -> main -> core):
-        -
+        -???
 
 
 
@@ -41,18 +41,55 @@
 """
 
 ################### BEGIN -ING of the code ###############################
-import click # BSD 3-Clause License
+"""
+### global constants
+"""
+# metadata
+PROGRAM_NAME = "scrodepiot" # do not delete;
+VERSION = "v0.0.0.0" # do not delete;
+AUTHOR = "zuozhixingzhe/digger/作止行者 (c) all rights reserved;" # do not delete;
+LICENSE = "???" # do not delete;
 
 
+"""
+### import
+"""
+
+# `click`: BSD 3-Clause License; `click-help-colors`: MIT;
+import click # BSD 3-Clause License; a command line arguments parser
+from click_help_colors import HelpColorsGroup, HelpColorsCommand # MIT Licence
+
+"""
+### CoreProcesses
+"""
 class CoreProcesses:
-    def core():
 
+    @click.group(
+        cls=HelpColorsGroup,
+        help_headers_color='magenta',  # title, e.g. `Options`
+        help_options_color='cyan'    # options, e.g. `--help`
+    )# generated-by-deepseek
+    def clickDefaultGroup():
+        pass # Just act as the group
+
+    """
+    the core task
+    """
+    @clickDefaultGroup.command()
+    @click.argument('scriptpath', nargs = -1, type = click.Path()) # direct args; scriptpath ,filepath; we do not recieve more direct args
+    @click.option('--haha-h', is_flag = True, help = '???haha')
+    @click.version_option(version = VERSION, prog_name = PROGRAM_NAME) # we need to use click-s own default method.
+    @staticmethod
+    def core(*,scriptpath,haha_h): # the key words must match the option name of `click`
+        """
+        ???haha
+        """
         """
         ### safety check
         """
 
         """
-        ### read parameters
+        ### check parameters
         """
 
 
@@ -62,8 +99,13 @@ class CoreProcesses:
 def main():
     CoreProcesses.core()
 
+def debug():
+    # write your idea here.
+    pass
+
 def router():
     # You could modify your own test or other logic or idea here, which would not easily break the main process of my program.
+    # use `debug()` to switch to your debug content
     #main()
     # You could just use a single `main()` as default origin behavior.
     main()
