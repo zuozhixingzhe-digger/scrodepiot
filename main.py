@@ -76,11 +76,11 @@ class CoreProcesses:
     the core task
     """
     @clickDefaultGroup.command()
-    @click.argument('scriptpath', nargs = -1, type = click.Path()) # direct args; scriptpath ,filepath; we do not recieve more direct args
-    @click.option('--haha-h', is_flag = True, help = '???haha')
+    @click.argument('scriptpath', nargs = -1, type = click.Path(resolve_path = True)) # direct args; scriptpath ,filepath; we do not recieve more direct args; warning , many path args would come
+    @click.option('--haha-h', is_flag = True, help = '???haha') #haha???
     @click.version_option(version = VERSION, prog_name = PROGRAM_NAME) # we need to use click-s own default method.
     @staticmethod
-    def core(*,scriptpath,haha_h): # the key words must match the option name of `click`
+    def core(*,scriptpath,haha_h): # the key words must match the option name of `click`(`*`)
         """
         ???haha
         """
@@ -92,16 +92,19 @@ class CoreProcesses:
         ### check parameters
         """
 
-
-        print('hello')
+        """
+        ### ### ### ### ### ### ### ###
+        THIS IS WHERE WE ARE
+        """
+        print(f'hello {scriptpath}')
 
 
 def main():
     CoreProcesses.core()
 
 def debug():
+    print('PLEASE write your idea here \n:-)\n .')
     # write your idea here.
-    pass
 
 def router():
     # You could modify your own test or other logic or idea here, which would not easily break the main process of my program.
