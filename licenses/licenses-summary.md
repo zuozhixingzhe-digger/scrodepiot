@@ -1,6 +1,6 @@
-# LICENCES SUMMARY
+# LICENSES SUMMARY
 
-### licences summary
+### licenses summary
 - prompt_toolkit(python-prompt-toolkit): BSD 3-Clause "New" or "Revised" License, Copyright (c) 2014, Jonathan Slenders. [https://github.com/prompt-toolkit/python-prompt-toolkit]
 - click: BSD 3-Clause "New" or "Revised" License, Copyright 2014 Pallets. [https://github.com/pallets/click]
 - click_help_colors: MIT Licence, Copyright (c) 2016 Roman Tonkonozhko. [https://github.com/click-contrib/click-help-colors]
