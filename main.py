@@ -57,14 +57,14 @@ PROGRAM_HELP_DOC= f"""
 """
 # settings
 ENCODING = "utf-8"
-GRAMMER = r"""
+GRAMMAR = r"""
     start: executable?            // beginning with a `?` makes the tree simple; `executable` is just a whole unit; only no or one `executable` is allowed.
     ?executable: statement+
     ?statement: debug
-    ?debug: SYMBOL
-    SYMBOL: /[A-Za-z_\-][A-Za-z0-9_\-]*/
-    NUMERIC: /[0-9\-][A-Za-z0-9_\-]/
-    KEYWORD: /\/[A-Za-z0-9_\-]*\/?/
+    ?debug: SYMBOL|COMMENT|NUMERIC
+    SYMBOL: /[A-Za-z_][A-Za-z0-9_\-]*/
+    NUMERIC: /[0-9\-][A-Za-z0-9_\-]*/
+    KEYWORD: /\/[A-Za-z0-9_]*\/?/
     COMMENT: /#.*$/
     %ignore COMMENT
     //
@@ -75,7 +75,7 @@ GRAMMER = r"""
     //
     ///////////////////////////////
 """ ##############????????????FIXME TODO HACK
-# The grammer just defines a `excutable`.
+# The grammer just defines a `excutable`, one or zero.
 
 
 
@@ -84,15 +84,14 @@ GRAMMER = r"""
 """
 
 try:
-    # `click`: BSD 3-Clause License; `click-help-colors`: MIT;
-    import click # BSD 3-Clause License; a command line arguments parser
-    from click_help_colors import HelpColorsGroup, HelpColorsCommand # MIT Licence
-    import prompt_toolkit # BSD 3-Clause License; interactive prompt tools
+    import click # BSD 3-Clause "New" or "Revised" License, Copyright 2014 Pallets.; a command line arguments parser
+    from click_help_colors import HelpColorsGroup, HelpColorsCommand # MIT Licence, Copyright (c) 2016 Roman Tonkonozhko.
+    import prompt_toolkit # BSD 3-Clause "New" or "Revised" License, Copyright (c) 2014, Jonathan Slenders.; interactive prompt tools
     from prompt_toolkit import prompt, PromptSession
     from prompt_toolkit.history import FileHistory
     from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
     from prompt_toolkit.formatted_text import ANSI
-    import lark # ???HACK,LICENSE?!
+    import lark # MIT License, Copyright © 2017 Erez Shinan.
     from lark import Lark, Tree, Token, Discard, Transformer
     from lark.exceptions import (
         UnexpectedToken,
@@ -104,10 +103,10 @@ try:
     ) # --deepseekAI
     from lark.indenter import Indenter
     #
-    import requests # ???HACK
+    import requests # Apache License 2.0, Requests, Copyright 2019 Kenneth Reitz.
     #import NoThisModule
 except (ModuleNotFoundError, ImportError) as e:
-    print(f"\x1b[0;31mError before start: Python Model may be not installed! Exited.({e})\x1b[0m")
+    print(f"\x1b[0;31mError before start: Python Module may be not installed! Exited.({e})\x1b[0m")
     exit(1)
 
 
@@ -144,7 +143,7 @@ class CoreProcesses:
     ### % the core tasks
     """
     @clickDefaultGroup.command(help = PROGRAM_HELP_DOC)
-    @click.argument('scriptpath', required = False, default = None, type = click.Path(resolve_path = True)) # direct args; scriptpath ,filepath; we do not recieve more direct args; warning , many path args would come
+    @click.argument('scriptpath', required = False, default = None, type = click.Path(resolve_path = True)) # direct args; scriptpath ,filepath; we do not recieve more direct args;
     @click.argument('argstoscript', nargs = -1, type = click.UNPROCESSED) # the args to throw to your own script to process
     @click.option('--prompt-history-file', type = click.Path(resolve_path = True), help = 'Specify the history IO file of interactive command prompt interface.Only the interactive prompt mode makes sense.')
     @click.option('--debug', is_flag = True, help = 'Toggle corePositionDebugger, as you could define whose action by modifying the Python source code.')
@@ -164,7 +163,7 @@ class CoreProcesses:
         ### INIT
         """
         # Init lark
-        CoreProcesses.parser = Lark(GRAMMER,parser = "lalr",)
+        CoreProcesses.parser = Lark(GRAMMAR,parser = "lalr",)
         """
         ### %%% check parameters
             %%%% check script file and its arguments, route to interactive shell or a script reader(just execute).
@@ -225,6 +224,9 @@ class CoreProcesses:
                 ### ### ### ### ### ### ### ### HACK TODO HACK HACK TODO HACK
                 THIS IS WHERE WE ARE; WE TEST!
                 """
+            except CoreProcesses.ScriptSyntaxErrorPot as e: # HACK! Just show the error now. Need to modify inthe future.
+                CoreProcesses.showError(f"Syntax error.(\n{e}\n)")
+                continue
             except EOFError: # Ctrl-D
                 break # Will directly exit the program.
             except KeyboardInterrupt: # Ctrl-C
@@ -251,13 +253,14 @@ class CoreProcesses:
         - :
             - file/user-input > ExecutableBlock > Command
         """
-        if CoreProcesses.parser is None: # Fix the situation when the parser is not initialised.
+        if CoreProcesses.parser is None: # We fix the situation when the parser is not initialised.
             CoreProcesses.parser = Lark(GRAMMER,parser = "lalr",)
         try:
             CoreProcesses.showSituation(f"(\n{CoreProcesses.parser.parse(command).pretty}\n)")
-            #################?????????????????TODOCoreProcesses.parser = Lark(GRAMMER,parser = "lalr",)
+            #################?????????????????TODO
         except (UnexpectedCharacters,UnexpectedToken,UnexpectedEOF) as e:
-            raise CoreProcesses.TheAuthorIsAClownPot(e) #######???FIXIT
+            # TODO: We need to solve the grammar error, and show to the user friendly.
+            raise CoreProcesses.ScriptSyntaxErrorPot(e)
     #
     """
     ### % utilities
@@ -277,6 +280,9 @@ class CoreProcesses:
         """ HACK """
         pass
     class TheAuthorIsAClownPot(Pot): # 作者就是个小丑！当你看到这个被抛出的时候，作者应该挨骂的，应该的。。。
+        """ HACK """
+        pass
+    class ScriptSyntaxErrorPot(Pot):
         """ HACK """
         pass
     class NoScriptContentPot(Pot):
