@@ -1,0 +1,23 @@
+[tool.liccheck]
+# This file is used according to `pip install liccheck`/`sudo apt install pipx` & `pipx install liccheck` & `pipx ensurepath` & `pipx inject liccheck 'setuptools<82'`,and `liccheck` in the root folder of this repo to check if the licenses are in accordance with my licenses and rules.
+# Howerver, this tool seems to be a garbbage:). Do not use it.
+level = "PARANOID" # 严格
+
+authorized_licenses = [
+    "bsd",
+    "mit",
+    "python",
+    "psf",
+]
+
+unauthorized_licenses = [
+    "gpl",
+    "agpl",
+    "lgpl",
+    "sspl",
+    "apache-2.0"
+]
+
+[tool.liccheck.authorized_packages]
+# white-list
+# `"<package-name>" = "<version-info(a single '*' is allowed?)>"`  --deepseek

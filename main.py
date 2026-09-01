@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 # --digger-created--20260725
-#  zuozhixingzhe/digger/作止行者 (c) all rights reserved;
+# zuozhixingzhe/digger/作止行者 (c) all rights reserved; LICENSE: `Apache 2.0 OR MIT`
 # Contact me at `321323006+zuozhixingzhe-digger@users.noreply.github.com`
 # scrodepiot:main.py
 # this is just the main process -- all the contents are here(except when we make it too huge to make it in a file )
 # --!!!--GIT ENABLED --DO NOT put any sensitive (e.g. key) or non-plaintext (e.g. big photos) or excessive content(e.g. libraries) files here,even in an instant
 # I-m a green hand,and this is just a play and clown project,do not use it in your production environment.
-# If you are interested in who I am ,I-ll tell you that I am a Chinese.
-# --!!!--the LICENCE has not been choosed, but probably `Apache 2.0 or MIT` license, for you to choose. If you see this line, please remind me to add the licence, thanks!
+# If you are interested in who I am, I-ll tell you that I am a Chinese.
 # only the that just compatible with both Apache 2.0 and MIT are allowed to use.
 # e.g. PSFv2 MIT Public-Domain BSD-3-Clause-License,..., are allowed.
-# e.g. GPLv2 GPLv3 LGPL AGPL Apache 2.0 ,..., these libraries and source codes are NOT allowed to use.
+# e.g. GPLv2 GPLv3 LGPL AGPL Apache 2.0(Cause Collision with GPLv2),..., these libraries and source codes are NOT allowed to use.
 
 """
 ```markdown
@@ -48,24 +47,30 @@
 PROGRAM_NAME = "scrodepiot" # do not delete;
 VERSION = "v0.0.0.0" # do not delete;
 AUTHOR = "zuozhixingzhe/digger/作止行者 (c) all rights reserved;" # do not delete;
-LICENSE = "???" # do not delete;
+LICENSE = "Apache 2.0 OR MIT" # do not delete;
 PROGRAM_HELP_DOC= f"""
         MANUAL:\n
         {PROGRAM_NAME}, {VERSION}, by {AUTHOR}. LICENSE:{LICENSE}\n
         ???haha\n
         You could use `./main.py --prompt-history-file=<histfilePath> -- <scriptPath> <args> ...` temporarily.
-"""
+""" # do not delete;
 # settings
-ENCODING = "utf-8"
+ENCODING = "utf-8" # do not delete;
 GRAMMAR = r"""
     start: executable?            // beginning with a `?` makes the tree simple; `executable` is just a whole unit; only no or one `executable` is allowed.
     ?executable: statement+
     ?statement: debug
-    ?debug: SYMBOL|COMMENT|NUMERIC
+    ?debug: SYMBOL|NUMERIC|EXPANDEDKEYWORD|REGEXMATCH|REGEXREPLACE|PLUS
+    PLUS: /\+/
+    MINUS: /\-/
+    MULTIPLY: /\*/
     SYMBOL: /[A-Za-z_][A-Za-z0-9_\-]*/
-    NUMERIC: /[0-9\-][A-Za-z0-9_\-]*/
-    KEYWORD: /\/[A-Za-z0-9_]*\/?/
-    COMMENT: /#.*$/
+    NUMERIC: /[0-9\-\+\.][A-Za-z0-9_\-\+]*.?/      //maybe we should enhance it with `1e-3` `0.1` `.1` etc.
+    EXPANDEDKEYWORD: /-[A-Za-z0-9_\-]+/      // a single `-` is not included; the keywords is the additional, not the primary;
+    REGEXMATCH:  /\/(?:[^\/\\]|\\.)*\/[gimuy]*/             // to avoid colission with `/**/` & `//`, we need to take `*` away from the next from `/`(regex does not allow `*` to start, according to my knowledge(?)); Just tell the boarder of regex, do not check its grammar; `(?:)` does not catch the group in regex; Deepseek wrote it;
+    REGEXREPLACE: /\/.*\/.*\//   // ???????????
+    DEVIDE: /\//
+    COMMENT: /\/\/.*/ | /\/\*[\s\S]*\*\// | /#.*$/              // just bang(`#`)-comment, c-style (`//` , `/**/`); (`x'''...'''`is not included)
     %ignore COMMENT
     //
     //
@@ -74,8 +79,8 @@ GRAMMAR = r"""
     //
     //
     ///////////////////////////////
-""" ##############????????????FIXME TODO HACK
-# The grammer just defines a `excutable`, one or zero.
+""" # do not delete; ##############????????????FIXME TODO HACK
+# The grammer just defines a `executable`, one or zero `executable` is allowed.
 
 
 
@@ -103,7 +108,7 @@ try:
     ) # --deepseekAI
     from lark.indenter import Indenter
     #
-    import requests # Apache License 2.0, Requests, Copyright 2019 Kenneth Reitz.
+    import httpx # HACK LICENSE???
     #import NoThisModule
 except (ModuleNotFoundError, ImportError) as e:
     print(f"\x1b[0;31mError before start: Python Module may be not installed! Exited.({e})\x1b[0m")
@@ -146,11 +151,12 @@ class CoreProcesses:
     @click.argument('scriptpath', required = False, default = None, type = click.Path(resolve_path = True)) # direct args; scriptpath ,filepath; we do not recieve more direct args;
     @click.argument('argstoscript', nargs = -1, type = click.UNPROCESSED) # the args to throw to your own script to process
     @click.option('--prompt-history-file', type = click.Path(resolve_path = True), help = 'Specify the history IO file of interactive command prompt interface.Only the interactive prompt mode makes sense.')
+    @click.option('--execute-directly', type = str, default = None, help = f'Directly execute the ({PROGRAM_NAME}) command after the option')
     @click.option('--debug', is_flag = True, help = 'Toggle corePositionDebugger, as you could define whose action by modifying the Python source code.')
     @click.option('--haha-h', is_flag = True, help = '???haha') #haha???FIXME
     @click.version_option(version = VERSION, prog_name = PROGRAM_NAME) # we need to use click-s own default method.
     @staticmethod
-    def distributor(*,scriptpath,argstoscript,prompt_history_file,debug,haha_h): # the key words must match the option name of `click`(`*`)
+    def distributor(*,scriptpath,argstoscript,prompt_history_file,execute_directly,debug,haha_h): # the key words must match the option name of `click`(`*`)
         """DO NOT USE THIS DOC!!!"""
         """
         ### %% FUNCTION:
@@ -177,6 +183,7 @@ class CoreProcesses:
             CoreProcesses.corePositionDebugger()
             return
         #print(scriptpath)
+        # Priority: script > direct-execute-command > interactive
         if scriptpath is not None:
             try:
                 with open(scriptpath, 'r', encoding=ENCODING) as f :
@@ -193,6 +200,9 @@ class CoreProcesses:
                 CoreProcesses.showError(f"Sorry. You have no permission to get access to this script file, and the program is terminated. Maybe you could try `chmod +r ???(FIXME)` with CAUTION.～地球帝国紫禁城欢迎你的光临，请出示你的御制令牌～({e})") # FIXME
             finally:
                 pass
+        elif execute_directly is not None:
+            raise CoreProcesses.TheAuthorIsAClownPot("🤡")
+            ...# TODO: add this
         else: # Interactive
             CoreProcesses.interactiveCommandPrompt(historyPath=prompt_history_file)
 
@@ -256,7 +266,7 @@ class CoreProcesses:
         if CoreProcesses.parser is None: # We fix the situation when the parser is not initialised.
             CoreProcesses.parser = Lark(GRAMMER,parser = "lalr",)
         try:
-            CoreProcesses.showSituation(f"(\n{CoreProcesses.parser.parse(command).pretty}\n)")
+            CoreProcesses.showSituation(f"(\n{CoreProcesses.parser.parse(command).pretty()}\n)")
             #################?????????????????TODO
         except (UnexpectedCharacters,UnexpectedToken,UnexpectedEOF) as e:
             # TODO: We need to solve the grammar error, and show to the user friendly.
