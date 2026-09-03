@@ -65,14 +65,17 @@ GRAMMAR = r"""
     // --- syntax
     start: executable?            // beginning with a `?` makes the tree simple; `executable` is just a whole unit; only no or one `executable` is allowed.
     executable: statement+        // TODO: You could write ?excutable here(when the rules allows).
-    statement: ((expression ASSIGNCOMMAND expression) | (CALL expression) | (expression)) (_NL*)   // ;. WARNING TODO: statement =/= expression; TODO `_NL` problem is to solve!
-    debugthing: SYMBOL|NUMERIC|EXPANDEDKEYWORD|REGEXMATCHER|REGEXREPLACER|URL|TRUE|POWER|PLUS|MINUS|MULTIPLY|DEVIDE|COMMA|DOT|_INDENT|_DEDENT|_NL|string
-    expression: debugthing|bracketexpression|expression POWER expression
+    statement: ((expression ASSIGNCOMMAND expression) | (CALL expression) | ("%" expression)) (_NL)   // ;. WARNING TODO: statement =/= expression; TODO `_NL` problem is to solve!
+    debugthing: SYMBOL|NUMERIC|REGEXMATCHER|REGEXREPLACER|URL|TRUE|POWER|PLUS|MINUS|MULTIPLY|DEVIDE|COMMA|DOT|_INDENT|_DEDENT|_NL|string
+    expression: debugthing       // |bracketexpression|(expression POWER expression)
+    level: "-undefined-2389j38eh"      // TODO??????????
+    comparechain: level comparer level (comparer level)*  // Like Python(`1 < x < 10`). Thank Python to give me the idea!
     // --- primary elements
     bracketexpression: "(" expression ")"
         | "[" expression "]"
         | "{" expression "}"  // That-s strange: the lark grammar, cannot be `xxx |` ,but `| xxx`.
-    //    the keyword is so many (and may increase in the future), that we use a `-` prefix to tell between symbols and keywords.
+    //    the keyword is so many (and may increase in the future), that we use a `-` prefix to tell between symbols and keywords. Brackets are required to use when it-s not an obvious natural usage( `+` `*` `**` `==`, etc.);
+    comparer: LESSTHAN | GREATERTHAN | LESSOREQUAL | GREATEROREQUAL | EQUAL | NOTEQUAL
     symbol: (TREATASSYMBOL string) | SYMBOL       // `$ "a" "b"` is ok ,just as `ab`
     string: (ESCAPEDSTRING | RAWSTRING)+
     // --- TERMINAL
@@ -107,12 +110,13 @@ GRAMMAR = r"""
     NULL: "-null" | "-Null" | "-none" | "-None"
     TRUE: "-true" | "-True" | "-t" | "-yes" | "-y" | "-on" | "-v" | "-V"   // Victory(v)/Cross(x) is allowed
     FALSE: "-false" | "-False" | "-f" | "-no" | "-n" | "-off" | "-x" | "-X"
-    MOD: "-mod"
+    EXACTDEVIDE: "-ed" "-exactly-devide-by"   // Python `//`.“整除”，不知道英文怎么说？
+    MOD: "-mod"      // Python `%`
     SIN: "-sin" | "-sine"
     COS: "-cos" | "-cosine"
     TAN: "-tan" | "-tangent"
     // No `f"..."` as Python, we use `"..." expression "..."` instead; `="..."` is a raw String;
-    RAWSTRING: /=`[^`]*`/
+    RAWSTRING.4096: /=`[^`]*`/          // Note: `XYZ.1234` is able to explictly define the priority, and in lark, a greater number means a prior order;
         | /='[^']*'/
         | /="[^"]*"/
         | /=```[\s\S]*```/
@@ -120,7 +124,7 @@ GRAMMAR = r"""
 """  r'''
         | /="""[\s\S]*"""/
 '''  r"""
-    ESCAPEDSTRING: /`(?:[^\\]|\\[^\n])*[`$]/
+    ESCAPEDSTRING.2560: /`(?:[^\\]|\\[^\n])*[`$]/       // .;(`Shift/Reduce conflict` (maybe) with RAWSTRING if `[^=]` is not added; However, it would match and eat a char! so we do not use.)
         | /'(?:[^\\]|\\[^\n])*['$]/
         | /"(?:[^\\]|\\[^\n])*["$]/
         | /```(?:[^\\]|\\[^\n])*```/
@@ -129,13 +133,13 @@ GRAMMAR = r"""
         | /"""(?:[^\\]|\\[^\n])*"""/
 '''  r"""
     SYMBOL: /[A-Za-z_][A-Za-z0-9_\-]*/
-    NUMERIC: /[0-9\-\+]\.?[A-Za-z0-9_\-\+]*\.?/      //maybe we should enhance it with `1e-3` `0.1` `.1`, `0date-2026-09-02` etc.
-    EXPANDEDKEYWORD: /-[A-Za-z0-9_\-]+/      // a single `-` is not included; the keywords is the additional, not the primary;
+    NUMERIC: /[\-\+]?[0-9]\.?[A-Za-z0-9_\-\+]*\.?/      //maybe we should enhance it with `1e-3` `0.1` `.1`, `0date-2026-09-02` etc.
+    // EXPANDEDKEYWORD: /-[A-Za-z0-9_\-]+/       // a single `-` is not included; the keywords are the additional, not the primary;
     URL: /\<?(?:https?|file|s?ftp):\/\/[^\(\)\[\]\{\}<>`"\|\s]*\>?/
         | /\<(?:https?|file|s?ftp):\/\/.*\>/
         // Special! Directly write your URL! You could write directly or put into `<>`, such as `<https://www.example.com>` (which would write your words more freely, such as `()[]...`).(No space(use `%20` instead), \n, tab, `()[]{}|\ <>"`, ..., are allowed; use `%` to escape instead). .
     REGEXMATCHER:  /\/(?:[^\/\\]|\\.)*\/[gimuy]*/             // to avoid colission with `/**/` & `//`, we need to take `*` away from the next from `/`(regex does not allow `*` to start, according to my knowledge(?)); Just tell the boarder of regex, do not check its grammar; `(?:)` does not catch the group in regex; Deepseek wrote it; regular expression matcher;
-    REGEXREPLACER: /\/.*\/.*\//   // ??????????? //replacer
+    REGEXREPLACER: /s\/.*\/.*\//   // ???????????TODO //replacer, like GNU sed.
     PLUS: "+" | "-plus" | "-add" | "-positive"       // Special! An operator could be replaced as a keyword.
     MINUS: "-" | "-minus" | "-sub" | "-negative"
     MULTIPLY: "*" | "-multiply" | "-star"
@@ -143,17 +147,18 @@ GRAMMAR = r"""
     POWER: "**" | "^" | "-power"
     LESSTHAN: "<" | "-less-than" | "-lt"
     GREATERTHAN: ">" | "-greater-than" | "-gt"
-    LESSOREQEAL: "<=" | "-less-than-or-equal-to" | "-le"
+    LESSOREQUAL: "<=" | "-less-than-or-equal-to" | "-le"
     GREATEROREQUAL: ">=" | "-greater-than-or-equal-to" | "-ge"
     EQUAL: "==" | "-equal-to" | "-eq"
     NOTEQUAL: "=/=" | "-not-equal-to" | "-ne"
+    ASSIGNINEXPRESSION: ":=" | "-gets-together"
     AND: "&" | "-and"
     OR: "|" | "-or"
     NOT: "~" | "-not"
     DOT: "." | "-dot"
     COMMA: "," | "-comma"
     NEXTSTATEMENT: ";" | "-next-statement"      // `;` Force to make it to the next statement
-    ASSIGNCOMMAND: "=" | ":" | "-assigns-from"   // assign-command(`=`) and assign-operator(`:=`) is different.
+    ASSIGNCOMMAND: "=" | ":" | "-gets"   // assign-command(`=`) and assign-operator(`:=`) is different.
     TRANSPORTTORIGHTCOMMAND: ">>>" | "-transports-to"  // Special!
     TRANSPORTTOLEFTCOMMAND: "<<<" | "-transports-from"
     TREATASSYMBOL: "$" | "-as-symbol"      // just as `$ "abc?xyz"`(the space between `$` and the string is a optional),will treat as a symbol
@@ -173,7 +178,17 @@ GRAMMAR = r"""
     ///////////////////////////////
 """ # do not delete; ##############????????????FIXME TODO HACK
 # The grammer just defines a `executable`, one or zero `executable` is allowed.
+#  （我自己的注释：见“test1.py”那个，可以进行严格的测试）
+"""
+TODO:my-logs:
+    - a -calls adsfd
+    .
+    Unexpected token Token('MINUS', '-') at line 1, column 3.
+    Expected one of:
+            * ASSIGNCOMMAND
+    Previous tokens: [Token('SYMBOL', 'a')]
 
+"""
 
 
 """
@@ -245,6 +260,7 @@ class CoreProcesses:
         CoreProcesses.parser = Lark(
             GRAMMAR,
             parser = "lalr",
+            #strict = True,   # If there are ambigious grammar, the parser would reject parsing. However, without library `lark[interegular]`, it will not work!
             regex = False,   # For license reasons, regex(Apache2.0?) is not allowed to use.
             postlex = CoreProcesses.UnifiedIndenter(),
         )
@@ -343,7 +359,12 @@ class CoreProcesses:
                     ANSI("\x1b[0;35m- \x1b[0m"),
                     rprompt = ANSI("\x1b[0;2mAlt-Enter:submit\x1b[0m"), # TODO: we could add more functions in the future
                 )
-                CoreProcesses.interpreter(userInput) # Send to interpreter.
+                if userInput and not userInput.endswith('\n'):
+                    # The unix file standard and my grammar both requires a `\n` at the end, but the console does not.
+                    sentCommand = userInput + '\n'
+                else:
+                    sentCommand = userInput
+                CoreProcesses.interpreter(sentCommand) # Send to interpreter.
                 #
                 """
                 ### ### ### ### ### ### ### ### HACK TODO HACK HACK TODO HACK
