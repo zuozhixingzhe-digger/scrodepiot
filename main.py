@@ -58,20 +58,25 @@ PROGRAM_HELP_DOC= f"""
 ENCODING = "utf-8" # do not delete;
 GRAMMAR = r"""
     //
+    // --- declaration and import
     %import common.WS_INLINE
     %import common.END_OF_FILE -> EOF
     %declare _INDENT _DEDENT    // Virtual tags
-    //
+    // --- syntax
     start: executable?            // beginning with a `?` makes the tree simple; `executable` is just a whole unit; only no or one `executable` is allowed.
     executable: statement+        // TODO: You could write ?excutable here(when the rules allows).
-    statement: ((expression ASSIGNCOMMAND expression) | (expression)) (_NL*)   // ;. WARNING TODO: statement =/= expression
+    statement: ((expression ASSIGNCOMMAND expression) | (CALL expression) | (expression)) (_NL*)   // ;. WARNING TODO: statement =/= expression; TODO `_NL` problem is to solve!
     debugthing: SYMBOL|NUMERIC|EXPANDEDKEYWORD|REGEXMATCHER|REGEXREPLACER|URL|TRUE|POWER|PLUS|MINUS|MULTIPLY|DEVIDE|COMMA|DOT|_INDENT|_DEDENT|_NL|string
     expression: debugthing|bracketexpression|expression POWER expression
+    // --- primary elements
     bracketexpression: "(" expression ")"
         | "[" expression "]"
         | "{" expression "}"  // That-s strange: the lark grammar, cannot be `xxx |` ,but `| xxx`.
     //    the keyword is so many (and may increase in the future), that we use a `-` prefix to tell between symbols and keywords.
-    string: ESCAPEDSTRING | RAWSTRING
+    symbol: (TREATASSYMBOL string) | SYMBOL       // `$ "a" "b"` is ok ,just as `ab`
+    string: (ESCAPEDSTRING | RAWSTRING)+
+    // --- TERMINAL
+    CALL: "@" | "-call"| "-at"    // Special! `-call function` | `@function` | `function()`(`()`->`[ ]` `{}` is allowed) | `function(<args>)` | `function <args>` is allowed, but `function` is not allowed! Otherwise, the parser could not identify whether it is an expresssion(illeagal to be a statement) or a statement;
     TRY: "-try"          // try-but(`except`)-normally(`else`)-always(`finally`)
     BUT: "-but"
     NORMALLY: "-normally"
@@ -86,21 +91,26 @@ GRAMMAR = r"""
     ITERATE: "-iterate"    // (`for`), `-iterate x-iterable -as y-new-var -when condition`.
     NEXT: "-next"  // (`continue`)
     LEAVE: "-leave"   // (`break`)   next and leave, just as the queue:).
-    PROCESSTYPE: "-process"
-    BOOLEANTYPE: "-boolean"
-    INTEGERTYPE: "-integer"
+    PASS: "-pass" | "-nothing-to-do"
+    PUBLIC: "-public" | "-P"
+    PRIVATE: "-private" | "-p"
+    WRITABLE: "-writable" | "-R"
+    READONLY: "-readonly" | "-read-only" | "-unwritable" | "-r"
+    PROCESSTYPE: "-process" | "-proc"
+    BOOLEANTYPE: "-boolean" | "-bool"
+    INTEGERTYPE: "-integer" | "-int"
     REALTYPE: "-real"
-    COMPLEXTYPE: "-complex"
+    COMPLEXTYPE: "-complex" | "-cplx"
     MAPTYPE: "-map"    // (`dictionary` and `object`)
-    VECTORTYPE: "-vector"
+    VECTORTYPE: "-vector"      // Js-s array
     STRINGTYPE: "-string"
     NULL: "-null" | "-Null" | "-none" | "-None"
     TRUE: "-true" | "-True" | "-t" | "-yes" | "-y" | "-on" | "-v" | "-V"   // Victory(v)/Cross(x) is allowed
     FALSE: "-false" | "-False" | "-f" | "-no" | "-n" | "-off" | "-x" | "-X"
     MOD: "-mod"
-    SIN: "-sin"
-    COS: "-cos"
-    TAN: "-tan"
+    SIN: "-sin" | "-sine"
+    COS: "-cos" | "-cosine"
+    TAN: "-tan" | "-tangent"
     // No `f"..."` as Python, we use `"..." expression "..."` instead; `="..."` is a raw String;
     RAWSTRING: /=`[^`]*`/
         | /='[^']*'/
@@ -126,16 +136,29 @@ GRAMMAR = r"""
         // Special! Directly write your URL! You could write directly or put into `<>`, such as `<https://www.example.com>` (which would write your words more freely, such as `()[]...`).(No space(use `%20` instead), \n, tab, `()[]{}|\ <>"`, ..., are allowed; use `%` to escape instead). .
     REGEXMATCHER:  /\/(?:[^\/\\]|\\.)*\/[gimuy]*/             // to avoid colission with `/**/` & `//`, we need to take `*` away from the next from `/`(regex does not allow `*` to start, according to my knowledge(?)); Just tell the boarder of regex, do not check its grammar; `(?:)` does not catch the group in regex; Deepseek wrote it; regular expression matcher;
     REGEXREPLACER: /\/.*\/.*\//   // ??????????? //replacer
-    PLUS: "+"
-    MINUS: "-"
-    MULTIPLY: "*"
-    DEVIDE: "/"
-    POWER: "**" | "^"
-    DOT: "."
-    COMMA: ","
-    NEXTSTATEMENT: ";"      // `;` Force to make it to the next statement
-    ASSIGNCOMMAND: "="    // assign-command(`=`) and assign-operator(`:=`) is different.
-    COMMENT: /\/\/.*/ | /\/\*[\s\S]*\*\// | "!" | "?" | /-[a-qs-z]*[a-z]*/ | /#.*$/               // just bang(`#`)-comment, c-style (`//` , `/**/`), and single sign-comment-char(Special! A single `!` or `?` is a comment); (`x'''...'''`is not included(TODO: THIS could add directly!!!));
+    PLUS: "+" | "-plus" | "-add" | "-positive"       // Special! An operator could be replaced as a keyword.
+    MINUS: "-" | "-minus" | "-sub" | "-negative"
+    MULTIPLY: "*" | "-multiply" | "-star"
+    DEVIDE: "/" | "-devide" | "-slash"
+    POWER: "**" | "^" | "-power"
+    LESSTHAN: "<" | "-less-than" | "-lt"
+    GREATERTHAN: ">" | "-greater-than" | "-gt"
+    LESSOREQEAL: "<=" | "-less-than-or-equal-to" | "-le"
+    GREATEROREQUAL: ">=" | "-greater-than-or-equal-to" | "-ge"
+    EQUAL: "==" | "-equal-to" | "-eq"
+    NOTEQUAL: "=/=" | "-not-equal-to" | "-ne"
+    AND: "&" | "-and"
+    OR: "|" | "-or"
+    NOT: "~" | "-not"
+    DOT: "." | "-dot"
+    COMMA: "," | "-comma"
+    NEXTSTATEMENT: ";" | "-next-statement"      // `;` Force to make it to the next statement
+    ASSIGNCOMMAND: "=" | ":" | "-assigns-from"   // assign-command(`=`) and assign-operator(`:=`) is different.
+    TRANSPORTTORIGHTCOMMAND: ">>>" | "-transports-to"  // Special!
+    TRANSPORTTOLEFTCOMMAND: "<<<" | "-transports-from"
+    TREATASSYMBOL: "$" | "-as-symbol"      // just as `$ "abc?xyz"`(the space between `$` and the string is a optional),will treat as a symbol
+    COMMENT: /\/\/.*/ | /\/\*[\s\S]*\*\// | "!" | "?" | /#.*$/               // just bang(`#`)-comment, c-style (`//` , `/**/`), and single sign-comment-char(Special! A single `!` or `?` is a comment); (`x'''...'''`is not included(TODO: THIS could add directly!!!));
+    // --- ignore and other definations
     %ignore COMMENT
     %ignore WS_INLINE
     CONTINUED_LINE: /\\\r?\n[\x20\t]*/               //   `\<next-line>` to ignore the new-line tag. Just eat the `\n` and the space and tab(space and tab are not resolved by WS_INLINE).
@@ -218,6 +241,16 @@ class CoreProcesses:
     """
     ###
     """
+    def larkInit():
+        CoreProcesses.parser = Lark(
+            GRAMMAR,
+            parser = "lalr",
+            regex = False,   # For license reasons, regex(Apache2.0?) is not allowed to use.
+            postlex = CoreProcesses.UnifiedIndenter(),
+        )
+    """
+    ###
+    """
     @click.group(
         cls=HelpColorsGroup,
         help_headers_color='magenta',  # title, e.g. `Options`
@@ -251,12 +284,7 @@ class CoreProcesses:
         ### INIT
         """
         # Init lark
-        CoreProcesses.parser = Lark(
-            GRAMMAR,
-            parser = "lalr",
-            regex = True,
-            postlex = CoreProcesses.UnifiedIndenter(),
-        )
+        CoreProcesses.larkInit()
         """
         ### %%% check parameters
             %%%% check script file and its arguments, route to interactive shell or a script reader(just execute).
@@ -351,7 +379,7 @@ class CoreProcesses:
             - file/user-input > ExecutableBlock > Command
         """
         if CoreProcesses.parser is None: # We fix the situation when the parser is not initialised.
-            CoreProcesses.parser = Lark(GRAMMER,parser = "lalr",)
+            CoreProcesses.larkInit()
         try:
             CoreProcesses.showSituation(f"(\n{CoreProcesses.parser.parse(command).pretty()}\n)")
             #################?????????????????TODO
