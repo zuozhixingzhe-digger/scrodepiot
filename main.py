@@ -58,27 +58,34 @@ PROGRAM_HELP_DOC= f"""
 ENCODING = "utf-8" # do not delete;
 GRAMMAR = r"""
     //
+
     // --- declaration and import
     %import common.WS_INLINE
     %import common.END_OF_FILE -> EOF
     %declare _INDENT _DEDENT    // Virtual tags
+
     // --- syntax
     start: executable?            // beginning with a `?` makes the tree simple; `executable` is just a whole unit; only no or one `executable` is allowed.
     executable: statement+        // TODO: You could write ?excutable here(when the rules allows).
     statement: ((expression ASSIGNCOMMAND expression) | (CALL expression) | ("%" expression)) (_NL)   // ;. WARNING TODO: statement =/= expression; TODO `_NL` problem is to solve!
-    debugthing: SYMBOL|NUMERIC|REGEXMATCHER|REGEXREPLACER|URL|TRUE|POWER|PLUS|MINUS|MULTIPLY|DEVIDE|COMMA|DOT|_INDENT|_DEDENT|_NL|string
+    debugthing: REGEXMATCHER|REGEXREPLACER|URL|TRUE|POWER|PLUS|MINUS|MULTIPLY|DEVIDE|COMMA|DOT|_INDENT|_DEDENT|_NL|integrated
     expression: debugthing       // |bracketexpression|(expression POWER expression)
     level: "-undefined-2389j38eh"      // TODO??????????
     comparechain: level comparer level (comparer level)*  // Like Python(`1 < x < 10`). Thank Python to give me the idea!
+
     // --- primary elements
-    bracketexpression: "(" expression ")"
-        | "[" expression "]"
-        | "{" expression "}"  // That-s strange: the lark grammar, cannot be `xxx |` ,but `| xxx`.
-    //    the keyword is so many (and may increase in the future), that we use a `-` prefix to tell between symbols and keywords. Brackets are required to use when it-s not an obvious natural usage( `+` `*` `**` `==`, etc.);
     comparer: LESSTHAN | GREATERTHAN | LESSOREQUAL | GREATEROREQUAL | EQUAL | NOTEQUAL
+
+    // --- integrated elements
+    integrated: bracketexpression | symbol | string | NUMERIC
+    bracketexpression: (LPAREN expression  RPAREN (COMMA expression)* (COMMA)?)
+        | (LBRACKET expression RBRACKET (COMMA expression)* (COMMA)?)
+        | (LBRACE expression RBRACE (COMMA expression)* (COMMA)?)  // That-s strange: the lark grammar, cannot be `xxx |` ,but `| xxx`.  ; Note: lark does not support`()*?` like regex; `()` is bad; `{a}` `(a,)` `(a,b)` `[a,b,c]`, ..., are good;
+    //    the keyword is so many (and may increase in the future), that we use a `-` prefix to tell between symbols and keywords. Brackets are required to use when it-s not an obvious natural usage( `+` `*` `**` `==`, etc.);
     symbol: (TREATASSYMBOL string) | SYMBOL       // `$ "a" "b"` is ok ,just as `ab`
-    string: (ESCAPEDSTRING | RAWSTRING)+
-    // --- TERMINAL
+    string: (ESCAPEDSTRING | RAWSTRING)+          // `'...'`(simple) `'...' x '...'`(format) are both OK; Note: A “String” would directly eat a whole string list, including`ESCAPEDSTRING | RAWSTRING`;
+
+    // --- TERMINALS
     CALL: "@" | "-call"| "-at"    // Special! `-call function` | `@function` | `function()`(`()`->`[ ]` `{}` is allowed) | `function(<args>)` | `function <args>` is allowed, but `function` is not allowed! Otherwise, the parser could not identify whether it is an expresssion(illeagal to be a statement) or a statement;
     TRY: "-try"          // try-but(`except`)-normally(`else`)-always(`finally`)
     BUT: "-but"
@@ -86,15 +93,17 @@ GRAMMAR = r"""
     ALWAYS: "-always"
     SHOCK: "-shock"  // (`raise`)You must catch a `shock`, otherwise, the program will terminate.
     SHOUT: "-shout"   // Special! You could choose not to solve `shout`, the program will continue; if you use `but` to catch it, then, if you already solve this, then you could choose `-next`(come back to the original position, default, nothing would happen, and `normally` is to be executed) or `-leave`(do not execute the `normally`, and `always` is the last what we do, before leave the block.).
-    DISCUSS: "-discuss"   // discuss-case (is like C-s switch-case);
-    CASE: "-case"
+    DISCUSS: "-discuss"   // discuss-case (is like C-s switch-case); `case` is thrown away;（case这个词不用写哦），注意不是when（if）语句，
     IF: "-if"   // You could get rid of `if`, `<condition><return><indented block>` is a condition(if) statement; like Python, there is `x -if y -else z`.
     ELSE: "-else"    // `-else` or `-else <condition>`(`elif <condition>:`)
     LOOP: "-loop"       // `<condition> -loop` or `-loop`(`while True:`)
     ITERATE: "-iterate"    // (`for`), `-iterate x-iterable -as y-new-var -when condition`.
+    LABEL: "-label"    // `<condition> -label <label1>`(`-when` statement), `-next/-leave <label1>`;
     NEXT: "-next"  // (`continue`)
     LEAVE: "-leave"   // (`break`)   next and leave, just as the queue:).
     PASS: "-pass" | "-nothing-to-do"
+    RETURN: "-return" | "-ret"
+    WAIT: "-wait"  // Will wait until a condition(time or others), give out the CPU time.
     PUBLIC: "-public" | "-P"
     PRIVATE: "-private" | "-p"
     WRITABLE: "-writable" | "-R"
@@ -104,36 +113,41 @@ GRAMMAR = r"""
     INTEGERTYPE: "-integer" | "-int"
     REALTYPE: "-real"
     COMPLEXTYPE: "-complex" | "-cplx"
-    MAPTYPE: "-map"    // (`dictionary` and `object`)
-    VECTORTYPE: "-vector"      // Js-s array
+    CATALOGTYPE: "-catalog"    // (`dictionary` and `object`)
+    CLUSTERTYPE: "-cluster"      // Js-s array
+    TENSORTYPE: "-tensor"       // Special use for math-calculate arrays, must be in the same type.
     STRINGTYPE: "-string"
     NULL: "-null" | "-Null" | "-none" | "-None"
     TRUE: "-true" | "-True" | "-t" | "-yes" | "-y" | "-on" | "-v" | "-V"   // Victory(v)/Cross(x) is allowed
     FALSE: "-false" | "-False" | "-f" | "-no" | "-n" | "-off" | "-x" | "-X"
     EXACTDEVIDE: "-ed" "-exactly-devide-by"   // Python `//`.“整除”，不知道英文怎么说？
     MOD: "-mod"      // Python `%`
+    ABS: "-abs"
+    RE: "-Re" | "-re"
+    IM: "-Im" | "-im"
+    ARG: "-arg"     // 辐角主值
     SIN: "-sin" | "-sine"
     COS: "-cos" | "-cosine"
     TAN: "-tan" | "-tangent"
     // No `f"..."` as Python, we use `"..." expression "..."` instead; `="..."` is a raw String;
-    RAWSTRING.4096: /=`[^`]*`/          // Note: `XYZ.1234` is able to explictly define the priority, and in lark, a greater number means a prior order;
-        | /='[^']*'/
-        | /="[^"]*"/
-        | /=```[\s\S]*```/
-        | /='''[\s\S]*'''/
+    RAWSTRING.4096: /=`[^`]*?`/          // Note: `XYZ.1234` is able to explictly define the priority, and in lark, a greater number means a prior order; Collision with `=`(!), TODO!; Non-Greedy(Lazy, (`*?`), Otherwise, will match until the last Quote, and the quote to close the string is of No Sense!),Important(!);
+        | /='[^']*?'/
+        | /="[^"]*?"/
+        | /=```[\s\S]*?```/
+        | /='''[\s\S]*?'''/
 """  r'''
-        | /="""[\s\S]*"""/
+        | /="""[\s\S]*?"""/
 '''  r"""
-    ESCAPEDSTRING.2560: /`(?:[^\\]|\\[^\n])*[`$]/       // .;(`Shift/Reduce conflict` (maybe) with RAWSTRING if `[^=]` is not added; However, it would match and eat a char! so we do not use.)
-        | /'(?:[^\\]|\\[^\n])*['$]/
-        | /"(?:[^\\]|\\[^\n])*["$]/
-        | /```(?:[^\\]|\\[^\n])*```/
-        | /'''(?:[^\\]|\\[^\n])*'''/
+    ESCAPEDSTRING.2560: /`(?:[^\\]|\\[^\n])*?[`$]/       // .;(`Shift/Reduce conflict` (maybe) with RAWSTRING if `[^=]` is not added; However, it would match and eat a char! so we do not use.);
+        | /'(?:[^\\]|\\[^\n])*?['$]/
+        | /"(?:[^\\]|\\[^\n])*?["$]/
+        | /```(?:[^\\]|\\[^\n])*?```/
+        | /'''(?:[^\\]|\\[^\n])*?'''/
 """  r'''
-        | /"""(?:[^\\]|\\[^\n])*"""/
+        | /"""(?:[^\\]|\\[^\n])*?"""/
 '''  r"""
     SYMBOL: /[A-Za-z_][A-Za-z0-9_\-]*/
-    NUMERIC: /[\-\+]?[0-9]\.?[A-Za-z0-9_\-\+]*\.?/      //maybe we should enhance it with `1e-3` `0.1` `.1`, `0date-2026-09-02` etc.
+    NUMERIC: /[\-\+]?[0-9]\.?[A-Za-z0-9_\-\+]*\.?/      //maybe we should enhance it with `1e-3` `0.1` `.1`, `0date-2026-09-02` etc.Greedy?(TODO)
     // EXPANDEDKEYWORD: /-[A-Za-z0-9_\-]+/       // a single `-` is not included; the keywords are the additional, not the primary;
     URL: /\<?(?:https?|file|s?ftp):\/\/[^\(\)\[\]\{\}<>`"\|\s]*\>?/
         | /\<(?:https?|file|s?ftp):\/\/.*\>/
@@ -152,17 +166,29 @@ GRAMMAR = r"""
     EQUAL: "==" | "-equal-to" | "-eq"
     NOTEQUAL: "=/=" | "-not-equal-to" | "-ne"
     ASSIGNINEXPRESSION: ":=" | "-gets-together"
-    AND: "&" | "-and"
-    OR: "|" | "-or"
-    NOT: "~" | "-not"
+    AND: "&" | "&&" | "-and" | "-And"
+    OR:  "|" | "||" | "-or"  | "-Or"
+    NOR: "-nor" | "-Nor"
+    NOT: "~" | "-not" | "-Not"
+    NAND: "-nand" | "-Nand"              //  `x -nand y` instead of `!(x & y)`
+    XOR: "-xor" | "-Xor"
+    EZ: "-ez" | "-Ez"        // Equals zero
+    NEZ: "-nez" | "-Nez"     // Not euals zero
     DOT: "." | "-dot"
     COMMA: "," | "-comma"
+    LPAREN: "(" | "-lparen"
+    RPAREN: ")" | "-rparen"
+    LBRACKET: "[" | "-lbracket"
+    RBRACKET: "]" | "-rbracket"
+    LBRACE: "{" | "-lbrace"
+    RBRACE: "}" | "-rbrace"
     NEXTSTATEMENT: ";" | "-next-statement"      // `;` Force to make it to the next statement
     ASSIGNCOMMAND: "=" | ":" | "-gets"   // assign-command(`=`) and assign-operator(`:=`) is different.
     TRANSPORTTORIGHTCOMMAND: ">>>" | "-transports-to"  // Special!
     TRANSPORTTOLEFTCOMMAND: "<<<" | "-transports-from"
     TREATASSYMBOL: "$" | "-as-symbol"      // just as `$ "abc?xyz"`(the space between `$` and the string is a optional),will treat as a symbol
     COMMENT: /\/\/.*/ | /\/\*[\s\S]*\*\// | "!" | "?" | /#.*$/               // just bang(`#`)-comment, c-style (`//` , `/**/`), and single sign-comment-char(Special! A single `!` or `?` is a comment); (`x'''...'''`is not included(TODO: THIS could add directly!!!));
+
     // --- ignore and other definations
     %ignore COMMENT
     %ignore WS_INLINE
@@ -187,6 +213,12 @@ TODO:my-logs:
     Expected one of:
             * ASSIGNCOMMAND
     Previous tokens: [Token('SYMBOL', 'a')]
+
+"""
+#########################################################################
+"""
+Terminals-  Order
+
 
 """
 
@@ -230,6 +262,7 @@ class CoreProcesses:
     """
     ###
     """
+    @staticmethod
     def corePositionDebugger():
         # Write what you want to test when `--debug` is added
         print("?????")
@@ -256,6 +289,7 @@ class CoreProcesses:
     """
     ###
     """
+    @staticmethod
     def larkInit():
         CoreProcesses.parser = Lark(
             GRAMMAR,
@@ -272,6 +306,7 @@ class CoreProcesses:
         help_headers_color='magenta',  # title, e.g. `Options`
         help_options_color='cyan'    # options, e.g. `--help`
     )# generated-by-deepseek
+    @staticmethod
     def clickDefaultGroup():
         pass # Just act as the group
 
@@ -328,7 +363,7 @@ class CoreProcesses:
                 CoreProcesses.showError(f"Sorry. The specified script is not found, and the program is terminated. However, you have given me a boring directory and I was chuckling:)! ～朋友，咱们地球帝国这边再怎么有兵力，也奈何不了一个孤独的文件夹～({e})")
                 return
             except PermissionError as e: # note: `click` has already solved this, and it is normally unable to reach now.
-                CoreProcesses.showError(f"Sorry. You have no permission to get access to this script file, and the program is terminated. Maybe you could try `chmod +r ???(FIXME)` with CAUTION.～地球帝国紫禁城欢迎你的光临，请出示你的御制令牌～({e})") # FIXME
+                CoreProcesses.showError(f"Sorry. You have no permission to get access to this script file, and the program is terminated. ???Maybe you could try `???chmod +r ???(FIXME)` with CAUTION.～地球帝国紫禁城欢迎你的光临，请出示你的御制令牌～({e})") # FIXME
             finally:
                 pass
         elif execute_directly is not None:
